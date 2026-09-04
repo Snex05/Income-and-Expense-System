@@ -82,6 +82,8 @@
                    id="date"
                    class="form-control"
                    required>
+
+                 <div class="form-text" id="formattedDate">วันที่ที่เลือก: --/--/----</div>
         </div>
     </div>
 
@@ -517,6 +519,19 @@
 
 </div>
 
+<!-- รายละเอียดประจำวัน -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">รายละเอียดประจำวัน</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+            </div>
+            <div class="modal-body" id="detailsModalBody"></div>
+        </div>
+    </div>
+</div>
+
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -539,6 +554,20 @@
     const day = String(today.getDate()).padStart(2, "0");
 
     dateInput.value = `${year}-${month}-${day}`;
+
+    updateDateDisplay();
+
+    dateInput.addEventListener("change", updateDateDisplay);
+
+
+    function updateDateDisplay() {
+
+        document.getElementById("formattedDate").textContent =
+            dateInput.value
+                ? `วันที่ที่เลือก: ${formatDate(dateInput.value)}`
+                : "วันที่ที่เลือก: --/--/----";
+
+    }
 
 
     // ==========================================
@@ -767,7 +796,7 @@
 
             table.innerHTML += `
 
-                <tr>
+                <tr onclick="showDetails('${record.date}')" style="cursor: pointer;">
 
                     <td>
                         ${date}
@@ -836,6 +865,47 @@
 
 
         return `${day}/${month}/${year}`;
+
+    }
+
+
+    // ==========================================
+    // แสดงรายละเอียดประจำวัน
+    // ==========================================
+
+    function showDetails(date) {
+
+        const records =
+            JSON.parse(localStorage.getItem("dailyRecords")) || [];
+
+        const record =
+            records.find(item => item.date === date);
+
+        if (!record) return;
+
+        document.getElementById("detailsModalBody").innerHTML = `
+            <p><strong>วันที่:</strong> ${formatDate(record.date)}</p>
+            <h6 class="text-success">รายละเอียดรายรับ</h6>
+            <p>เงินสด: ${record.cash.toFixed(2)} บาท</p>
+            <p>โอนเงิน: ${record.transfer.toFixed(2)} บาท</p>
+            <p>เครื่องที่ 1: ${record.machine1.toFixed(2)} บาท</p>
+            <p>เครื่องที่ 2: ${record.machine2.toFixed(2)} บาท</p>
+            <p>TrueMoney: ${record.truemoney.toFixed(2)} บาท</p>
+            <p class="fw-bold text-success">รวมรายรับ: ${record.totalIncome.toFixed(2)} บาท</p>
+            <hr>
+            <h6 class="text-danger">รายละเอียดรายจ่าย</h6>
+            <p>พนักงาน 1: ${record.employee1.toFixed(2)} บาท</p>
+            <p>พนักงาน 2: ${record.employee2.toFixed(2)} บาท</p>
+            <p>พนักงาน 3: ${record.employee3.toFixed(2)} บาท</p>
+            <p>ซื้อของ: ${record.shopping.toFixed(2)} บาท</p>
+            <p class="fw-bold text-danger">รวมรายจ่าย: ${record.totalExpense.toFixed(2)} บาท</p>
+            <hr>
+            <p class="fw-bold text-primary">คงเหลือ: ${record.balance.toFixed(2)} บาท</p>
+        `;
+
+        bootstrap.Modal.getOrCreateInstance(
+            document.getElementById("detailsModal")
+        ).show();
 
     }
 
