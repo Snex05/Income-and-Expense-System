@@ -643,51 +643,76 @@
     // บันทึกข้อมูล
     // ==========================================
 
-    function getRecords() {
-        const records =
-            JSON.parse(localStorage.getItem("dailyRecords")) || [];
+    const SUPABASE_URL = "https://hpkucggagtzxapltmwvj.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_YMKml5-COFkqKC9KXD0oZQ_vKD61q4N";
+    const SUPABASE_RECORDS_URL = `${SUPABASE_URL}/rest/v1/daily_records`;
 
-        return records.map(record => {
-            const normalized = {
-                ...record,
-                cash: Number(record.cash) || 0,
-                coin: Number(record.coin) || 0,
-                transfer: Number(record.transfer) || 0,
-                machine1: Number(record.machine1) || 0,
-                machine2: Number(record.machine2) || 0,
-                truemoney: Number(record.truemoney) || 0,
-                employee1: Number(record.employee1) || 0,
-                employee2: Number(record.employee2) || 0,
-                employee3: Number(record.employee3) || 0,
-                meatball: Number(record.meatball ?? record.shopping) || 0,
-                ice: Number(record.ice) || 0,
-                otherShopping: Number(record.otherShopping) || 0
-            };
-
-            normalized.totalIncome = [
-                normalized.cash,
-                normalized.coin,
-                normalized.transfer,
-                normalized.machine1,
-                normalized.machine2,
-                normalized.truemoney
-            ].reduce((total, value) => total + value, 0);
-
-            normalized.totalExpense = [
-                normalized.employee1,
-                normalized.employee2,
-                normalized.employee3,
-                normalized.meatball,
-                normalized.ice,
-                normalized.otherShopping
-            ].reduce((total, value) => total + value, 0);
-
-            normalized.balance = normalized.totalIncome - normalized.totalExpense;
-            return normalized;
-        });
+    function supabaseHeaders() {
+        return {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json"
+        };
     }
 
-    function saveData() {
+    function normalizeRecord(record) {
+        const normalized = {
+            ...record,
+            cash: Number(record.cash) || 0,
+            coin: Number(record.coin) || 0,
+            transfer: Number(record.transfer) || 0,
+            machine1: Number(record.machine1) || 0,
+            machine2: Number(record.machine2) || 0,
+            truemoney: Number(record.truemoney) || 0,
+            employee1: Number(record.employee1) || 0,
+            employee2: Number(record.employee2) || 0,
+            employee3: Number(record.employee3) || 0,
+            meatball: Number(record.meatball ?? record.shopping) || 0,
+            ice: Number(record.ice) || 0,
+            otherShopping: Number(record.otherShopping) || 0
+        };
+
+        normalized.totalIncome = [
+            normalized.cash,
+            normalized.coin,
+            normalized.transfer,
+            normalized.machine1,
+            normalized.machine2,
+            normalized.truemoney
+        ].reduce((total, value) => total + value, 0);
+
+        normalized.totalExpense = [
+            normalized.employee1,
+            normalized.employee2,
+            normalized.employee3,
+            normalized.meatball,
+            normalized.ice,
+            normalized.otherShopping
+        ].reduce((total, value) => total + value, 0);
+
+        normalized.balance = normalized.totalIncome - normalized.totalExpense;
+        return normalized;
+    }
+
+    async function getRecords() {
+        const response = await fetch(
+            `${SUPABASE_RECORDS_URL}?select=record_date,record_data&order=record_date.desc`,
+            { headers: supabaseHeaders() }
+        );
+
+        if (!response.ok) {
+            throw new Error("โหลดข้อมูลจาก Supabase ไม่สำเร็จ");
+        }
+
+        const rows = await response.json();
+
+        return rows.map(row => normalizeRecord({
+            ...row.record_data,
+            date: row.record_date
+        }));
+    }
+
+    async function saveData() {
 
         const date = dateInput.value;
 
@@ -706,49 +731,32 @@
         };
 
 
-        // ดึงข้อมูลเก่า
-        let records = getRecords();
+        try {
+            const response = await fetch(
+                `${SUPABASE_RECORDS_URL}?on_conflict=record_date`,
+                {
+                    method: "POST",
+                    headers: {
+                        ...supabaseHeaders(),
+                        Prefer: "resolution=merge-duplicates,return=minimal"
+                    },
+                    body: JSON.stringify({
+                        record_date: date,
+                        record_data: data,
+                        updated_at: new Date().toISOString()
+                    })
+                }
+            );
 
+            if (!response.ok) {
+                throw new Error("บันทึกข้อมูลไม่สำเร็จ");
+            }
 
-        // ตรวจสอบว่ามีวันที่นี้แล้วหรือไม่
-        const index =
-            records.findIndex(item => item.date === date);
-
-
-        if (index !== -1) {
-
-            // ถ้ามี ให้แก้ไขข้อมูลเดิม
-            records[index] = {
-                ...records[index],
-                ...data
-            };
-
-            alert("แก้ไขข้อมูลเรียบร้อยแล้ว");
-
-        } else {
-
-            // ถ้ายังไม่มี ให้เพิ่มข้อมูล
-            records.push(data);
-
+            await displayHistory();
             alert("บันทึกข้อมูลเรียบร้อยแล้ว");
-
+        } catch (error) {
+            alert(`${error.message}\nกรุณาตรวจสอบการตั้งค่า Supabase และอินเทอร์เน็ต`);
         }
-
-
-        // เรียงวันที่ใหม่ไปเก่า
-        records.sort((a, b) =>
-            new Date(b.date) - new Date(a.date)
-        );
-
-
-        // บันทึกลง localStorage
-        localStorage.setItem(
-            "dailyRecords",
-            JSON.stringify(records)
-        );
-
-
-        displayHistory();
 
     }
 
@@ -757,7 +765,7 @@
     // แสดงประวัติ
     // ==========================================
 
-    function displayHistory() {
+    async function displayHistory() {
 
         const table =
             document.getElementById("historyTable");
@@ -766,7 +774,20 @@
         table.innerHTML = "";
 
 
-        let records = getRecords();
+        let records;
+
+        try {
+            records = await getRecords();
+        } catch (error) {
+            table.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-danger">
+                        ${error.message}
+                    </td>
+                </tr>
+            `;
+            return;
+        }
 
 
         if (records.length === 0) {
@@ -869,9 +890,9 @@
     // แสดงรายละเอียดประจำวัน
     // ==========================================
 
-    function showDetails(date) {
+    async function showDetails(date) {
 
-        const records = getRecords();
+        const records = await getRecords();
 
         const record =
             records.find(item => item.date === date);
@@ -912,9 +933,9 @@
     // แก้ไขข้อมูล
     // ==========================================
 
-    function editData(date) {
+    async function editData(date) {
 
-        let records = getRecords();
+        let records = await getRecords();
 
 
         const record =
@@ -929,6 +950,9 @@
 
         document.getElementById("cash").value =
             record.cash;
+
+        document.getElementById("coin").value =
+            record.coin;
 
         document.getElementById("transfer").value =
             record.transfer;
@@ -981,7 +1005,7 @@
     // ลบข้อมูล
     // ==========================================
 
-    function deleteData(date) {
+    async function deleteData(date) {
 
         if (!confirm(
             "คุณต้องการลบข้อมูลวันที่ " +
@@ -994,22 +1018,24 @@
         }
 
 
-        let records = getRecords();
+        try {
+            const response = await fetch(
+                `${SUPABASE_RECORDS_URL}?record_date=eq.${encodeURIComponent(date)}`,
+                {
+                    method: "DELETE",
+                    headers: supabaseHeaders()
+                }
+            );
 
+            if (!response.ok) {
+                throw new Error("ลบข้อมูลไม่สำเร็จ");
+            }
 
-        records =
-            records.filter(item => item.date !== date);
-
-
-        localStorage.setItem(
-            "dailyRecords",
-            JSON.stringify(records)
-        );
-
-
-        displayHistory();
-
-        alert("ลบข้อมูลเรียบร้อยแล้ว");
+            await displayHistory();
+            alert("ลบข้อมูลเรียบร้อยแล้ว");
+        } catch (error) {
+            alert(`${error.message}\nกรุณาตรวจสอบการตั้งค่า Supabase และอินเทอร์เน็ต`);
+        }
 
     }
 
