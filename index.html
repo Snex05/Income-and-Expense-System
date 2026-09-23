@@ -290,7 +290,7 @@
 
                         <div class="input-group">
                             <input type="number"
-                                   id="shopping"
+                                   id="meatball"
                                    class="form-control expense"
                                    min="0"
                                    step="0.01"
@@ -310,7 +310,7 @@
 
                         <div class="input-group">
                             <input type="number"
-                                   id="shopping"
+                                   id="ice"
                                    class="form-control expense"
                                    min="0"
                                    step="0.01"
@@ -330,7 +330,7 @@
 
                         <div class="input-group">
                             <input type="number"
-                                   id="shopping"
+                                   id="otherShopping"
                                    class="form-control expense"
                                    min="0"
                                    step="0.01"
@@ -448,53 +448,54 @@
             <div class="text-center mt-4">
 
                 <button class="btn btn-success px-4 me-2"
-                        onclick="saveData()">
+                        function getFormData() {
+                            const data = {};
 
-                    บันทึกข้อมูล
+                            document.querySelectorAll("input[type='number']").forEach(input => {
+                                data[input.id] = Number(input.value) || 0;
+                            });
 
-                </button>
+                            data.totalIncome = [
+                                data.cash,
+                                data.coin,
+                                data.transfer,
+                                data.machine1,
+                                data.machine2,
+                                data.truemoney
+                            ].reduce((total, value) => total + value, 0);
+
+                            data.totalExpense = [
+                                data.employee1,
+                                data.employee2,
+                                data.employee3,
+                                data.meatball,
+                                data.ice,
+                                data.otherShopping
+                            ].reduce((total, value) => total + value, 0);
+
+                            data.balance = data.totalIncome - data.totalExpense;
+                            return data;
+                        }
 
 
-                <button class="btn btn-secondary px-4"
-                        onclick="clearForm()">
-
-                    ล้างข้อมูล
-
-                </button>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ================= ประวัติ ================= -->
-
-    <div class="card shadow-sm mt-4 mb-5">
-
-        <div class="card-header bg-dark text-white">
-
-            <h4 class="mb-0">
-                ประวัติรายรับ - รายจ่าย
-            </h4>
-
+                        function calculate() {
+                            const data = getFormData();
         </div>
 
         <div class="card-body">
-
+                                .textContent = data.totalIncome.toFixed(2);
             <div class="table-responsive">
 
-                <table class="table table-bordered table-hover text-center">
+                                .textContent = data.totalExpense.toFixed(2);
 
                     <thead class="table-light">
-
+                                .textContent = data.totalIncome.toFixed(2);
                         <tr>
 
-                            <th>วันที่</th>
+                                .textContent = data.totalExpense.toFixed(2);
 
                             <th>รายรับ</th>
-
+                                .textContent = data.balance.toFixed(2);
                             <th>รายจ่าย</th>
 
                             <th>คงเหลือ</th>
@@ -642,6 +643,50 @@
     // บันทึกข้อมูล
     // ==========================================
 
+    function getRecords() {
+        const records =
+            JSON.parse(localStorage.getItem("dailyRecords")) || [];
+
+        return records.map(record => {
+            const normalized = {
+                ...record,
+                cash: Number(record.cash) || 0,
+                coin: Number(record.coin) || 0,
+                transfer: Number(record.transfer) || 0,
+                machine1: Number(record.machine1) || 0,
+                machine2: Number(record.machine2) || 0,
+                truemoney: Number(record.truemoney) || 0,
+                employee1: Number(record.employee1) || 0,
+                employee2: Number(record.employee2) || 0,
+                employee3: Number(record.employee3) || 0,
+                meatball: Number(record.meatball ?? record.shopping) || 0,
+                ice: Number(record.ice) || 0,
+                otherShopping: Number(record.otherShopping) || 0
+            };
+
+            normalized.totalIncome = [
+                normalized.cash,
+                normalized.coin,
+                normalized.transfer,
+                normalized.machine1,
+                normalized.machine2,
+                normalized.truemoney
+            ].reduce((total, value) => total + value, 0);
+
+            normalized.totalExpense = [
+                normalized.employee1,
+                normalized.employee2,
+                normalized.employee3,
+                normalized.meatball,
+                normalized.ice,
+                normalized.otherShopping
+            ].reduce((total, value) => total + value, 0);
+
+            normalized.balance = normalized.totalIncome - normalized.totalExpense;
+            return normalized;
+        });
+    }
+
     function saveData() {
 
         const date = dateInput.value;
@@ -656,64 +701,13 @@
 
 
         const data = {
-
-            date: date,
-
-            cash:
-                Number(document.getElementById("cash").value) || 0,
-
-            transfer:
-                Number(document.getElementById("transfer").value) || 0,
-
-            machine1:
-                Number(document.getElementById("machine1").value) || 0,
-
-            machine2:
-                Number(document.getElementById("machine2").value) || 0,
-
-            truemoney:
-                Number(document.getElementById("truemoney").value) || 0,
-
-
-            employee1:
-                Number(document.getElementById("employee1").value) || 0,
-
-            employee2:
-                Number(document.getElementById("employee2").value) || 0,
-
-            employee3:
-                Number(document.getElementById("employee3").value) || 0,
-
-            shopping:
-                Number(document.getElementById("shopping").value) || 0
-
+            date,
+            ...getFormData()
         };
 
 
-        // คำนวณ
-        data.totalIncome =
-            data.cash +
-            data.transfer +
-            data.machine1 +
-            data.machine2 +
-            data.truemoney;
-
-
-        data.totalExpense =
-            data.employee1 +
-            data.employee2 +
-            data.employee3 +
-            data.shopping;
-
-
-        data.balance =
-            data.totalIncome -
-            data.totalExpense;
-
-
         // ดึงข้อมูลเก่า
-        let records =
-            JSON.parse(localStorage.getItem("dailyRecords")) || [];
+        let records = getRecords();
 
 
         // ตรวจสอบว่ามีวันที่นี้แล้วหรือไม่
@@ -724,7 +718,10 @@
         if (index !== -1) {
 
             // ถ้ามี ให้แก้ไขข้อมูลเดิม
-            records[index] = data;
+            records[index] = {
+                ...records[index],
+                ...data
+            };
 
             alert("แก้ไขข้อมูลเรียบร้อยแล้ว");
 
@@ -769,8 +766,7 @@
         table.innerHTML = "";
 
 
-        let records =
-            JSON.parse(localStorage.getItem("dailyRecords")) || [];
+        let records = getRecords();
 
 
         if (records.length === 0) {
@@ -875,8 +871,7 @@
 
     function showDetails(date) {
 
-        const records =
-            JSON.parse(localStorage.getItem("dailyRecords")) || [];
+        const records = getRecords();
 
         const record =
             records.find(item => item.date === date);
@@ -897,7 +892,9 @@
             <p>พนักงาน 1: ${record.employee1.toFixed(2)} บาท</p>
             <p>พนักงาน 2: ${record.employee2.toFixed(2)} บาท</p>
             <p>พนักงาน 3: ${record.employee3.toFixed(2)} บาท</p>
-            <p>ซื้อของ: ${record.shopping.toFixed(2)} บาท</p>
+            <p>ค่าซื้อลูกชิ้น: ${record.meatball.toFixed(2)} บาท</p>
+            <p>ค่าน้ำแข็ง: ${record.ice.toFixed(2)} บาท</p>
+            <p>ค่าซื้อของอื่นๆ: ${record.otherShopping.toFixed(2)} บาท</p>
             <p class="fw-bold text-danger">รวมรายจ่าย: ${record.totalExpense.toFixed(2)} บาท</p>
             <hr>
             <p class="fw-bold text-primary">คงเหลือ: ${record.balance.toFixed(2)} บาท</p>
@@ -916,8 +913,7 @@
 
     function editData(date) {
 
-        let records =
-            JSON.parse(localStorage.getItem("dailyRecords")) || [];
+        let records = getRecords();
 
 
         const record =
@@ -955,8 +951,14 @@
         document.getElementById("employee3").value =
             record.employee3;
 
-        document.getElementById("shopping").value =
-            record.shopping;
+        document.getElementById("meatball").value =
+            record.meatball;
+
+        document.getElementById("ice").value =
+            record.ice;
+
+        document.getElementById("otherShopping").value =
+            record.otherShopping;
 
 
         calculate();
@@ -991,8 +993,7 @@
         }
 
 
-        let records =
-            JSON.parse(localStorage.getItem("dailyRecords")) || [];
+        let records = getRecords();
 
 
         records =
